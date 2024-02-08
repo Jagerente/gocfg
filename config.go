@@ -11,9 +11,11 @@ import (
 
 // Default tags for struct field annotations
 const (
-	structKeyTag        = "env"
-	structDefaultTag    = "default"
-	structAllowEmptyTag = "omitempty"
+	structKeyTag         = "env"
+	structDefaultTag     = "default"
+	structAllowEmptyTag  = "omitempty"
+	structDescriptionTag = "description"
+	structTitleTag       = "title"
 )
 
 // ValueProvider defines the interface for retrieving values based on keys
@@ -26,25 +28,34 @@ type ParserProvider interface {
 	Get(reflect.Value) (func(v string) (interface{}, error), bool)
 }
 
+// DocGenerator defines the interface for generating documentation for struct fields
+type DocGenerator interface {
+	GenerateDoc(*DocTree) error
+}
+
 // ConfigManager represents the configuration manager
 type ConfigManager struct {
-	structKeyTag        string
-	structDefaultTag    string
-	structAllowEmptyTag string
-	parserProviders     []ParserProvider
-	valueProviders      []ValueProvider
-	useDefaults         bool
-	forceDefaults       bool
+	structKeyTag         string
+	structDefaultTag     string
+	structAllowEmptyTag  string
+	parserProviders      []ParserProvider
+	valueProviders       []ValueProvider
+	useDefaults          bool
+	forceDefaults        bool
+	structDescriptionTag string
+	structTitleTag       string
 }
 
 // NewEmpty creates a new ConfigManager instance with default tags and empty providers
 func NewEmpty() *ConfigManager {
 	return &ConfigManager{
-		structKeyTag:        structKeyTag,
-		structDefaultTag:    structDefaultTag,
-		structAllowEmptyTag: structAllowEmptyTag,
-		parserProviders:     make([]ParserProvider, 0),
-		valueProviders:      make([]ValueProvider, 0),
+		structKeyTag:         structKeyTag,
+		structDefaultTag:     structDefaultTag,
+		structAllowEmptyTag:  structAllowEmptyTag,
+		structDescriptionTag: structDescriptionTag,
+		structTitleTag:       structTitleTag,
+		parserProviders:      make([]ParserProvider, 0),
+		valueProviders:       make([]ValueProvider, 0),
 	}
 }
 
@@ -174,6 +185,46 @@ func (c *ConfigManager) Unmarshal(cfg interface{}) error {
 	}
 
 	return nil
+}
+
+func (c *ConfigManager) GenerateDocumentation(cfg interface{}, docGen DocGenerator) error {
+	doc := NewDoc()
+
+	c.parseDocGroup(doc, cfg)
+
+	if err := docGen.GenerateDoc(doc); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ConfigManager) parseDocGroup(docGroup *DocTree, cfg interface{}) {
+	val := reflect.ValueOf(cfg).Elem()
+
+	for i := 0; i < val.NumField(); i++ {
+		var (
+			field        = val.Field(i)
+			tag          = val.Type().Field(i).Tag.Get(c.structKeyTag)
+			key          = strings.Split(tag, ",")[0]
+			allowEmpty   = strings.Contains(tag, c.structAllowEmptyTag)
+			defaultValue = val.Type().Field(i).Tag.Get(c.structDefaultTag)
+			description  = val.Type().Field(i).Tag.Get(c.structDescriptionTag)
+			title        = val.Type().Field(i).Tag.Get(c.structTitleTag)
+		)
+
+		if field.Kind() == reflect.Struct {
+			c.parseDocGroup(docGroup.AddGroup(title), field.Addr().Interface())
+			continue
+		}
+
+		docGroup.AddField(&DocField{
+			Key:          key,
+			OmitEmpty:    allowEmpty,
+			Description:  description,
+			DefaultValue: defaultValue,
+		})
+	}
 }
 
 // getValue retrieves the value for a key from registered value providers
