@@ -1,6 +1,7 @@
 package gocfg
 
 import (
+	"errors"
 	"github.com/Jagerente/gocfg/pkg/values"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -326,4 +327,99 @@ func Test_GetParserUnsupportedField(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get parser for UNSUPPORTED_FIELD: unsupported")
+}
+
+type MockDocGenerator struct {
+	GeneratedDoc *DocTree
+	WithErr      bool
+}
+
+func (m *MockDocGenerator) GenerateDoc(doc *DocTree) error {
+	if m.WithErr {
+		return errors.New("failed to generate doc")
+	}
+
+	m.GeneratedDoc = doc
+	return nil
+}
+
+func Test_GenerateDocumentation(t *testing.T) {
+	type Nested struct {
+		BoolField bool `env:"NESTED_BOOL_FIELD" description:"Description for Nested BoolField"`
+	}
+
+	type TestConfig struct {
+		StringField   string `env:"STRING_FIELD" description:"Description for StringField"`
+		IntField      int    `env:"INT_FIELD" description:"Description for IntField"`
+		NestedStruct  Nested `title:"Nested Struct Config"`
+		WithoutEnvTag string `description:"Description for WithoutEnvTag"`
+	}
+
+	cfg := new(TestConfig)
+	mockDocGenerator := &MockDocGenerator{}
+
+	cfgManager := NewEmpty()
+	err := cfgManager.GenerateDocumentation(cfg, mockDocGenerator)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, mockDocGenerator.GeneratedDoc)
+	assert.Equal(t, "", mockDocGenerator.GeneratedDoc.Title)
+	assert.Len(t, mockDocGenerator.GeneratedDoc.Fields, 3)
+	assert.Len(t, mockDocGenerator.GeneratedDoc.Groups, 1)
+	assert.Equal(t, "STRING_FIELD", mockDocGenerator.GeneratedDoc.Fields[0].Key)
+	assert.Equal(t, "Description for StringField", mockDocGenerator.GeneratedDoc.Fields[0].Description)
+	assert.Equal(t, "INT_FIELD", mockDocGenerator.GeneratedDoc.Fields[1].Key)
+	assert.Equal(t, "Description for IntField", mockDocGenerator.GeneratedDoc.Fields[1].Description)
+	assert.Equal(t, "Nested Struct Config", mockDocGenerator.GeneratedDoc.Groups[0].Title)
+	assert.Len(t, mockDocGenerator.GeneratedDoc.Groups[0].Fields, 1)
+	assert.Equal(t, "NESTED_BOOL_FIELD", mockDocGenerator.GeneratedDoc.Groups[0].Fields[0].Key)
+	assert.Equal(t, "Description for Nested BoolField", mockDocGenerator.GeneratedDoc.Groups[0].Fields[0].Description)
+}
+
+func Test_GenerateDocumentation_WithError(t *testing.T) {
+	type TestConfig struct {
+	}
+
+	cfg := new(TestConfig)
+	mockDocGenerator := &MockDocGenerator{
+		WithErr: true,
+	}
+
+	cfgManager := NewEmpty()
+	err := cfgManager.GenerateDocumentation(cfg, mockDocGenerator)
+
+	assert.NotNil(t, err)
+}
+
+func Test_parseDocGroup(t *testing.T) {
+	type Nested struct {
+		BoolField bool `env:"NESTED_BOOL_FIELD" description:"Description for Nested BoolField"`
+	}
+
+	type TestConfig struct {
+		StringField   string `env:"STRING_FIELD" description:"Description for StringField"`
+		IntField      int    `env:"INT_FIELD" description:"Description for IntField"`
+		NestedStruct  Nested `title:"Nested Struct Config"`
+		WithoutEnvTag string `description:"Description for WithoutEnvTag"`
+	}
+
+	cfg := new(TestConfig)
+
+	docGroup := NewDoc()
+
+	cfgManager := NewEmpty()
+	cfgManager.parseDocGroup(docGroup, cfg)
+
+	assert.NotNil(t, docGroup)
+	assert.Equal(t, "", docGroup.Title)
+	assert.Len(t, docGroup.Fields, 3)
+	assert.Len(t, docGroup.Groups, 1)
+	assert.Equal(t, "STRING_FIELD", docGroup.Fields[0].Key)
+	assert.Equal(t, "Description for StringField", docGroup.Fields[0].Description)
+	assert.Equal(t, "INT_FIELD", docGroup.Fields[1].Key)
+	assert.Equal(t, "Description for IntField", docGroup.Fields[1].Description)
+	assert.Equal(t, "Nested Struct Config", docGroup.Groups[0].Title)
+	assert.Len(t, docGroup.Groups[0].Fields, 1)
+	assert.Equal(t, "NESTED_BOOL_FIELD", docGroup.Groups[0].Fields[0].Key)
+	assert.Equal(t, "Description for Nested BoolField", docGroup.Groups[0].Fields[0].Description)
 }
