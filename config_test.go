@@ -203,20 +203,59 @@ func Test_StructField(t *testing.T) {
 
 func Test_OmitEmpty(t *testing.T) {
 	type TestConfig struct {
-		StringField string `env:"STRING_FIELD,omitempty"`
-		BoolField   bool   `env:"BOOL_FIELD"`
-		IntField    int    `env:"INT_FIELD"`
+		BoolField         bool          `env:"BOOL_FIELD,omitempty"`
+		StringField       string        `env:"STRING_FIELD,omitempty"`
+		IntField          int           `env:"INT_FIELD,omitempty"`
+		Int8Field         int8          `env:"INT8_FIELD,omitempty"`
+		Int16Field        int16         `env:"INT16_FIELD,omitempty"`
+		Int32Field        int32         `env:"INT32_FIELD,omitempty"`
+		Int64Field        int64         `env:"INT64_FIELD,omitempty"`
+		UintField         uint          `env:"UINT_FIELD,omitempty"`
+		Uint8Field        uint8         `env:"UINT8_FIELD,omitempty"`
+		Uint16Field       uint16        `env:"UINT16_FIELD,omitempty"`
+		Uint32Field       uint32        `env:"UINT32_FIELD,omitempty"`
+		Uint64Field       uint64        `env:"UINT64_FIELD,omitempty"`
+		Float32Field      float32       `env:"FLOAT32_FIELD,omitempty"`
+		Float64Field      float64       `env:"FLOAT64_FIELD,omitempty"`
+		TimeDurationField time.Duration `env:"TIME_FIELD,omitempty"`
 	}
 
-	_ = os.Setenv("BOOL_FIELD", "false")
+	_ = os.Setenv("BOOL_FIELD", "")
 	_ = os.Setenv("STRING_FIELD", "")
-	_ = os.Setenv("INT_FIELD", "0")
+	_ = os.Setenv("INT_FIELD", "")
+	_ = os.Setenv("INT8_FIELD", "")
+	_ = os.Setenv("INT16_FIELD", "")
+	_ = os.Setenv("INT32_FIELD", "")
+	_ = os.Setenv("INT64_FIELD", "")
+	_ = os.Setenv("UINT_FIELD", "")
+	_ = os.Setenv("UINT8_FIELD", "")
+	_ = os.Setenv("UINT16_FIELD", "")
+	_ = os.Setenv("UINT32_FIELD", "")
+	_ = os.Setenv("UINT64_FIELD", "")
+	_ = os.Setenv("FLOAT32_FIELD", "")
+	_ = os.Setenv("FLOAT64_FIELD", "")
+	_ = os.Setenv("TIME_FIELD", "")
 
 	cfg := new(TestConfig)
 	cfgManager := NewDefault()
 	err := cfgManager.Unmarshal(cfg)
 
 	assert.NoError(t, err)
+	assert.Equal(t, false, cfg.BoolField)
+	assert.Equal(t, "", cfg.StringField)
+	assert.Equal(t, 0, cfg.IntField)
+	assert.Equal(t, int8(0), cfg.Int8Field)
+	assert.Equal(t, int16(0), cfg.Int16Field)
+	assert.Equal(t, int32(0), cfg.Int32Field)
+	assert.Equal(t, int64(0), cfg.Int64Field)
+	assert.Equal(t, uint(0), cfg.UintField)
+	assert.Equal(t, uint8(0), cfg.Uint8Field)
+	assert.Equal(t, uint16(0), cfg.Uint16Field)
+	assert.Equal(t, uint32(0), cfg.Uint32Field)
+	assert.Equal(t, uint64(0), cfg.Uint64Field)
+	assert.Equal(t, float32(0), cfg.Float32Field)
+	assert.Equal(t, float64(0), cfg.Float64Field)
+	assert.Equal(t, time.Duration(0), cfg.TimeDurationField)
 }
 
 func Test_DefaultValues(t *testing.T) {

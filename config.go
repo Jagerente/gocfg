@@ -159,6 +159,10 @@ func (c *ConfigManager) Unmarshal(cfg interface{}) error {
 			value = c.getValue(key)
 		}
 
+		if allowEmpty && value == "" && defaultValue == "" {
+			continue
+		}
+
 		if !allowEmpty && value == "" && (defaultValue == "" || !c.useDefaults) {
 			return fmt.Errorf("%s cannot be empty", key)
 		}
