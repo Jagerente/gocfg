@@ -12,6 +12,7 @@
 - Set default values for each field using tags.
 - Easy to inject as much custom parsers as you need.
 - Easy to inject your own values providers as much as you need and use them all at once with priority.
+- Automatic documentation generator.
 
 ## Quick start
 
@@ -51,7 +52,9 @@ type AppConfig struct {
 	// Supported Tags:
 	// - env: Specifies the environment variable name.
 	// - default: Specifies the default value for the field.
-	// - omitempty: Allows empty fields. FOR STRINGS ONLY!
+	// - omitempty: Allows empty fields. 
+	//              If both the parsed value and the default value are empty, 
+	//              the field will be set to the zero value for its type in Go.
 
 	LogLevel          LoggerConfig
 	RedisConfig       RedisConfig
@@ -262,5 +265,205 @@ func main() {
 		panic(err)
 	}
 }
+
+```
+
+### Documentation generation
+
+1. Let's say you have such config file `/internal/config/config.go`:
+
+```go
+package config
+
+import (
+	"github.com/Jagerente/gocfg"
+	"github.com/Jagerente/gocfg/pkg/values"
+	"time"
+	cache_factory "your_cool_app/internal/router/cache"
+)
+
+type LoggerConfig struct {
+	LogLevel     int  `env:"LOG_LEVEL" default:"6" description:"https://pkg.go.dev/github.com/sirupsen/logrus@v1.9.3#Level"`
+	ReportCaller bool `env:"REPORT_CALLER" default:"true"`
+	LogFormatter int  `env:"LOG_FORMATTER" default:"0"`
+}
+
+type KafkaConfig struct {
+	KafkaDebug bool `env:"KAFKA_DEBUG" default:"true"`
+
+	KafkaVideoPublishedTopic    string `env:"KAFKA_VIDEO_PUBLISHED_TOPIC" default:"video_published.local"`
+	KafkaPlaylistUploadedTopic  string `env:"KAFKA_PLAYLIST_UPLOADED_TOPIC" default:"playlist_uploaded.local"`
+	KafkaServiceFailedTopic     string `env:"KAFKA_SERVICE_FAILED_TOPIC" default:"service_failed.local"`
+	KafkaServiceFailedErrorType string `env:"KAFKA_SERVICE_FAILED_ERROR_TYPE" default:"gallery.converter.playlist_error.local"`
+
+	KafkaProducerHost             string `env:"KAFKA_PRODUCER_HOST" default:"kafka:9092"`
+	KafkaProducerSecurityProtocol string `env:"KAFKA_PRODUCER_SECURITY_PROTOCOL" default:"SASL_Plaintext"`
+	KafkaProducerSaslMechanism    string `env:"KAFKA_PRODUCER_SASL_MECHANISM" default:"SCRAM-SHA-256"`
+	KafkaProducerSaslUsername     string `env:"KAFKA_PRODUCER_SASL_USERNAME"`
+	KafkaProducerSaslPassword     string `env:"KAFKA_PRODUCER_SASL_PASSWORD"`
+	KafkaProducerTimeoutSec       int    `env:"KAFKA_PRODUCER_TIMEOUT_SEC" default:"15"`
+
+	KafkaConsumerHost             string        `env:"KAFKA_CONSUMER_HOST" default:"kafka:9092"`
+	KafkaConsumerSecurityProtocol string        `env:"KAFKA_CONSUMER_SECURITY_PROTOCOL" default:"SASL_Plaintext"`
+	KafkaConsumerSaslMechanism    string        `env:"KAFKA_CONSUMER_SASL_MECHANISM" default:"SCRAM-SHA-256"`
+	KafkaConsumerSaslUsername     string        `env:"KAFKA_CONSUMER_SASL_USERNAME"`
+	KafkaConsumerSaslPassword     string        `env:"KAFKA_CONSUMER_SASL_PASSWORD"`
+	KafkaConsumerGroupID          string        `env:"KAFKA_CONSUMER_GROUP_ID" description:"Client group id string. All clients sharing the same group.id belong to the same group."`
+	KafkaConsumerAutoOffsetReset  string        `env:"KAFKA_CONSUMER_AUTO_OFFSET_RESET" description:"https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md"`
+	KafkaConsumerTimeout          time.Duration `env:"KAFKA_CONSUMER_TIMEOUT" default:"5s"`
+}
+
+type CassandraConfig struct {
+	CassandraHosts    string `env:"CASSANDRA_HOSTS" default:"127.0.0.1"`
+	CassandraKeyspace string `env:"CASSANDRA_KEYSPACE" default:"user_data_service"`
+}
+
+type RouterConfig struct {
+	ServerPort               uint16        `env:"SERVER_PORT" default:"8080"`
+	Debug                    bool          `env:"ROUTER_DEBUG" default:"true"`
+	CacheAdapter             string        `env:"CACHE_ADAPTER,omitempty" description:"Leave blank to not use.\nPossible values:\n- redis\n- memcache"`
+	CacheAdapterTTL          time.Duration `env:"CACHE_ADAPTER_TTL,omitempty" default:"1m"`
+	CacheAdapterNoCacheParam string        `env:"CACHE_ADAPTER_NOCACHE_PARAM,omitempty" default:"no-cache"`
+}
+
+type RedisCacheAdapterConfig struct {
+	RedisAddr     string `env:"CACHE_ADAPTER_REDIS_ADDR,omitempty" default:":6379"`
+	RedisDB       int    `env:"CACHE_ADAPTER_REDIS_DB,omitempty" default:"0"`
+	RedisUsername string `env:"CACHE_ADAPTER_REDIS_USERNAME,omitempty"`
+	RedisPassword string `env:"CACHE_ADAPTER_REDIS_PASSWORD,omitempty"`
+}
+
+type MemcacheCacheAdapterConfig struct {
+	Capacity         int                     `env:"CACHE_ADAPTER_MEMCACHE_CAPACITY,omitempty" default:"10000000"`
+	CachingAlgorithm cache_factory.Algorithm `env:"CACHE_ADAPTER_MEMCACHE_CACHING_ALGORITHM,omitempty" default:"LRU"`
+}
+type Config struct {
+	LoggerConfig               `title:"Logger configuration"`
+	RouterConfig               `title:"Router configuration"`
+	RedisCacheAdapterConfig    `title:"Redis Cache Adapter configuration"`
+	MemcacheCacheAdapterConfig `title:"Memcache Cache Adapter configuration"`
+	CassandraConfig            `title:"Cassandra configuration"`
+}
+
+func New() (*Config, error) {
+	var cfg = new(Config)
+
+	cfgManager := gocfg.NewDefault()
+	if dotEnvProvider, err := values.NewDotEnvProvider(); err == nil {
+		cfgManager = cfgManager.AddValueProviders(dotEnvProvider)
+	}
+
+	if err := cfgManager.Unmarshal(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+```
+
+2. Create new app, for example `/cmd/docs/main.go`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/Jagerente/gocfg"
+	"github.com/Jagerente/gocfg/pkg/docgens"
+	"os"
+	"your_cool_app/internal/config"
+)
+
+const outputFile = ".env.dist.generated"
+
+func main() {
+	cfg := new(config.Config)
+
+	file, err := os.Create(outputFile)
+	if err != nil {
+		panic(fmt.Errorf("error creating %s file: %v", outputFile, err))
+	}
+
+	cfgManager := gocfg.NewDefault()
+	if err := cfgManager.GenerateDocumentation(cfg, docgens.NewEnvDocGenerator(file)); err != nil {
+		panic(err)
+	}
+}
+
+```
+
+3. Run it by executing `go run cmd/docs/main.go`; it will generate the following file `.env.dist.generated`:
+
+```go
+# Auto-generated config
+
+#############################
+# Logger configuration
+#############################
+
+# Description:
+#  https://pkg.go.dev/github.com/sirupsen/logrus@v1.9.3#Level
+LOG_LEVEL=6
+
+REPORT_CALLER=true
+
+LOG_FORMATTER=0
+
+#############################
+# Router configuration
+#############################
+
+SERVER_PORT=8080
+
+ROUTER_DEBUG=true
+
+# Allowed to be empty
+# Description:
+#  Leave blank to not use.
+#  Possible values:
+#  - redis
+#  - memcache
+CACHE_ADAPTER=
+
+# Allowed to be empty
+CACHE_ADAPTER_TTL=1m
+
+# Allowed to be empty
+CACHE_ADAPTER_NOCACHE_PARAM=no-cache
+
+#############################
+# Redis Cache Adapter configuration
+#############################
+
+# Allowed to be empty
+CACHE_ADAPTER_REDIS_ADDR=:6379
+
+# Allowed to be empty
+CACHE_ADAPTER_REDIS_DB=0
+
+# Allowed to be empty
+CACHE_ADAPTER_REDIS_USERNAME=
+
+# Allowed to be empty
+CACHE_ADAPTER_REDIS_PASSWORD=
+
+#############################
+# Memcache Cache Adapter configuration
+#############################
+
+# Allowed to be empty
+CACHE_ADAPTER_MEMCACHE_CAPACITY=10000000
+
+# Allowed to be empty
+CACHE_ADAPTER_MEMCACHE_CACHING_ALGORITHM=LRU
+
+#############################
+# Cassandra configuration
+#############################
+
+CASSANDRA_HOSTS=127.0.0.1
+
+CASSANDRA_KEYSPACE=user_data_service
 
 ```
