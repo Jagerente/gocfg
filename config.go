@@ -112,7 +112,8 @@ func (c *ConfigManager) UseCustomKeyTag(tag string) *ConfigManager {
 // The function recursively traverses the fields of the structure and its nested structures,
 // which means structure can contain as much nested structures as you want.
 //
-// You may use omitempty tags to allow empty fields. STRINGS ONLY!
+// You may use omitempty tags to allow fields to be empty.
+// If both the parsed value and the default value are empty, the field will be set to the zero value for its type in Go.
 //
 // Example:
 //
