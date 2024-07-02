@@ -133,6 +133,8 @@ func (c *ConfigManager) UseCustomKeyTag(tag string) *ConfigManager {
 //		Float32Field			float32			`env:"FLOAT32_FIELD"`
 //		Float64Field			float64			`env:"FLOAT64_FIELD"`
 //		TimeDurationField 		time.Duration 	`env:"TIME_DURATION_FIELD"`
+//		ByteSliceField 			[]byte 			`env:"BYTE_SLICE_FIELD"`
+//		StringSliceField 		[]string		`env:"STRING_SLICE_FIELD"`
 //		EmptyField				string			`env:"EMPTY_FIELD,omitempty"`
 //		WithDefaultField		string			`env:"WITH_DEFAULT_FIELD" default:"ave"`
 //	}

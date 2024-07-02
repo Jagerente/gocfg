@@ -73,6 +73,8 @@ type AppConfig struct {
 	Float32Field      float32       `env:"FLOAT32_FIELD"`
 	Float64Field      float64       `env:"FLOAT64_FIELD"`
 	TimeDurationField time.Duration `env:"TIME_DURATION_FIELD"`
+	ByteSliceField    []byte        `env:"BYTE_SLICE_FIELD"`
+	StringSliceField  []string      `env:"STRING_SLICE_FIELD" default:"string1,string2,string3"`
 	EmptyField        string        `env:"EMPTY_FIELD,omitempty"`
 	WithDefaultField  string        `env:"WITH_DEFAULT_FIELD" default:"ave"`
 }
@@ -104,6 +106,7 @@ func main() {
 - int, int8, int16, int32, int64
 - uint, uint8, uint16, uint32, uint64
 - float32, float64
+- slices: bytes, strings
 
 ### .env file
 
