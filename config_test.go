@@ -32,6 +32,9 @@ func Test_UnmarshalFromEnv(t *testing.T) {
 
 		TimeField time.Duration `env:"TIME_FIELD"`
 
+		ByteSliceField   []byte   `env:"BYTE_SLICE_FIELD"`
+		StringSliceField []string `env:"STRING_SLICE_FIELD"`
+
 		EmptyField string `env:"EMPTY_FIELD,omitempty"`
 	}
 
@@ -55,6 +58,8 @@ func Test_UnmarshalFromEnv(t *testing.T) {
 	_ = os.Setenv("FLOAT64_FIELD", "3.14159265359")
 
 	_ = os.Setenv("TIME_FIELD", "5s")
+	_ = os.Setenv("BYTE_SLICE_FIELD", "test")
+	_ = os.Setenv("STRING_SLICE_FIELD", "test1,test2,test3")
 
 	cfg := new(TestConfig)
 	cfgManager := NewDefault()
@@ -76,6 +81,8 @@ func Test_UnmarshalFromEnv(t *testing.T) {
 	assert.Equal(t, float32(3.14), cfg.Float32Field)
 	assert.Equal(t, float64(3.14159265359), cfg.Float64Field)
 	assert.Equal(t, 5*time.Second, cfg.TimeField)
+	assert.Equal(t, []byte("test"), cfg.ByteSliceField)
+	assert.Equal(t, []string{"test1", "test2", "test3"}, cfg.StringSliceField)
 }
 
 func Test_UnmarshalFromDotEnv(t *testing.T) {
@@ -94,16 +101,19 @@ UINT32_FIELD=4294967295
 UINT64_FIELD=18446744073709551615
 FLOAT32_FIELD=3.14
 FLOAT64_FIELD=3.14159265359
-TIME_FIELD=5s`
+TIME_FIELD=5s
+BYTE_SLICE_FIELD=test
+STRING_SLICE_FIELD=test1,test2,test3`
 	)
 
 	tmpFile, _ := os.CreateTemp(".", "test_env_*.env")
-	defer func() { _ = tmpFile.Close() }()
+	envFilePath := tmpFile.Name()
+	defer func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(envFilePath)
+	}()
 
 	_, _ = tmpFile.WriteString(envContent)
-
-	envFilePath := tmpFile.Name()
-	defer func() { _ = os.Remove(envFilePath) }()
 
 	type TestConfig struct {
 		BoolField         bool          `env:"BOOL_FIELD"`
@@ -121,6 +131,8 @@ TIME_FIELD=5s`
 		Float32Field      float32       `env:"FLOAT32_FIELD"`
 		Float64Field      float64       `env:"FLOAT64_FIELD"`
 		TimeDurationField time.Duration `env:"TIME_FIELD"`
+		ByteSliceField    []byte        `env:"BYTE_SLICE_FIELD"`
+		StringSliceField  []string      `env:"STRING_SLICE_FIELD"`
 	}
 
 	dotEnvProvider, err := values.NewDotEnvProvider(envFilePath)
@@ -148,6 +160,8 @@ TIME_FIELD=5s`
 	assert.Equal(t, float32(3.14), cfg.Float32Field)
 	assert.Equal(t, float64(3.14159265359), cfg.Float64Field)
 	assert.Equal(t, 5*time.Second, cfg.TimeDurationField)
+	assert.Equal(t, []byte("test"), cfg.ByteSliceField)
+	assert.Equal(t, []string{"test1", "test2", "test3"}, cfg.StringSliceField)
 }
 
 func Test_EmptyField(t *testing.T) {
@@ -218,6 +232,8 @@ func Test_OmitEmpty(t *testing.T) {
 		Float32Field      float32       `env:"FLOAT32_FIELD,omitempty"`
 		Float64Field      float64       `env:"FLOAT64_FIELD,omitempty"`
 		TimeDurationField time.Duration `env:"TIME_FIELD,omitempty"`
+		ByteSliceField    []byte        `env:"BYTE_SLICE_FIELD,omitempty"`
+		StringSliceField  []string      `env:"STRING_SLICE_FIELD,omitempty"`
 	}
 
 	_ = os.Setenv("BOOL_FIELD", "")
@@ -235,6 +251,8 @@ func Test_OmitEmpty(t *testing.T) {
 	_ = os.Setenv("FLOAT32_FIELD", "")
 	_ = os.Setenv("FLOAT64_FIELD", "")
 	_ = os.Setenv("TIME_FIELD", "")
+	_ = os.Setenv("BYTE_SLICE_FIELD", "")
+	_ = os.Setenv("STRING_SLICE_FIELD", "")
 
 	cfg := new(TestConfig)
 	cfgManager := NewDefault()
@@ -256,6 +274,8 @@ func Test_OmitEmpty(t *testing.T) {
 	assert.Equal(t, float32(0), cfg.Float32Field)
 	assert.Equal(t, float64(0), cfg.Float64Field)
 	assert.Equal(t, time.Duration(0), cfg.TimeDurationField)
+	assert.Equal(t, []byte(nil), cfg.ByteSliceField)
+	assert.Equal(t, []string(nil), cfg.StringSliceField)
 }
 
 func Test_DefaultValues(t *testing.T) {

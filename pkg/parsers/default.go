@@ -3,6 +3,7 @@ package parsers
 import (
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -10,6 +11,12 @@ var (
 	defaultTypeParsers = map[reflect.Type]func(v string) (interface{}, error){
 		reflect.TypeOf(time.Duration(83)): func(v string) (interface{}, error) {
 			return time.ParseDuration(v)
+		},
+		reflect.TypeOf([]byte{}): func(v string) (interface{}, error) {
+			return []byte(v), nil
+		},
+		reflect.TypeOf([]string{}): func(v string) (interface{}, error) {
+			return strings.Split(v, ","), nil
 		},
 	}
 
