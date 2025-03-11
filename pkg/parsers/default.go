@@ -18,6 +18,18 @@ var (
 		reflect.TypeOf([]string{}): func(v string) (interface{}, error) {
 			return strings.Split(v, ","), nil
 		},
+		reflect.TypeOf([]int{}): func(v string) (interface{}, error) {
+			parts := strings.Split(v, ",")
+			result := make([]int, len(parts))
+			for i, p := range parts {
+				n, err := strconv.Atoi(strings.TrimSpace(p))
+				if err != nil {
+					return nil, err
+				}
+				result[i] = n
+			}
+			return result, nil
+		},
 	}
 
 	defaultKindParsers = map[reflect.Kind]func(v string) (interface{}, error){
