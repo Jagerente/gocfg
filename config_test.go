@@ -34,6 +34,7 @@ func Test_UnmarshalFromEnv(t *testing.T) {
 
 		ByteSliceField   []byte   `env:"BYTE_SLICE_FIELD"`
 		StringSliceField []string `env:"STRING_SLICE_FIELD"`
+		IntSliceField    []int    `env:"INT_SLICE_FIELD"`
 
 		EmptyField string `env:"EMPTY_FIELD,omitempty"`
 	}
@@ -60,6 +61,7 @@ func Test_UnmarshalFromEnv(t *testing.T) {
 	_ = os.Setenv("TIME_FIELD", "5s")
 	_ = os.Setenv("BYTE_SLICE_FIELD", "test")
 	_ = os.Setenv("STRING_SLICE_FIELD", "test1,test2,test3")
+	_ = os.Setenv("INT_SLICE_FIELD", "3,2,1,0,-1,-2,-3")
 
 	cfg := new(TestConfig)
 	cfgManager := NewDefault()
@@ -83,6 +85,7 @@ func Test_UnmarshalFromEnv(t *testing.T) {
 	assert.Equal(t, 5*time.Second, cfg.TimeField)
 	assert.Equal(t, []byte("test"), cfg.ByteSliceField)
 	assert.Equal(t, []string{"test1", "test2", "test3"}, cfg.StringSliceField)
+	assert.Equal(t, []int{3, 2, 1, 0, -1, -2, -3}, cfg.IntSliceField)
 }
 
 func Test_UnmarshalFromDotEnv(t *testing.T) {
@@ -103,7 +106,8 @@ FLOAT32_FIELD=3.14
 FLOAT64_FIELD=3.14159265359
 TIME_FIELD=5s
 BYTE_SLICE_FIELD=test
-STRING_SLICE_FIELD=test1,test2,test3`
+STRING_SLICE_FIELD=test1,test2,test3
+INT_SLICE_FIELD=3,2,1,0,-1,-2,-3`
 	)
 
 	tmpFile, _ := os.CreateTemp(".", "test_env_*.env")
@@ -133,6 +137,7 @@ STRING_SLICE_FIELD=test1,test2,test3`
 		TimeDurationField time.Duration `env:"TIME_FIELD"`
 		ByteSliceField    []byte        `env:"BYTE_SLICE_FIELD"`
 		StringSliceField  []string      `env:"STRING_SLICE_FIELD"`
+		IntSliceField     []int         `env:"INT_SLICE_FIELD"`
 	}
 
 	dotEnvProvider, err := values.NewDotEnvProvider(envFilePath)
@@ -162,6 +167,7 @@ STRING_SLICE_FIELD=test1,test2,test3`
 	assert.Equal(t, 5*time.Second, cfg.TimeDurationField)
 	assert.Equal(t, []byte("test"), cfg.ByteSliceField)
 	assert.Equal(t, []string{"test1", "test2", "test3"}, cfg.StringSliceField)
+	assert.Equal(t, []int{3, 2, 1, 0, -1, -2, -3}, cfg.IntSliceField)
 }
 
 func Test_EmptyField(t *testing.T) {
@@ -182,20 +188,35 @@ func Test_EmptyField(t *testing.T) {
 }
 
 func Test_InvalidType(t *testing.T) {
-	type TestConfig struct {
-		BoolField bool `env:"BOOL_FIELD"`
-		IntField  int  `env:"INT_FIELD"`
-	}
+	t.Run("int", func(t *testing.T) {
+		type TestConfig struct {
+			IntField int `env:"INT_FIELD"`
+		}
 
-	_ = os.Setenv("BOOL_FIELD", "true")
-	_ = os.Setenv("INT_FIELD", "invalid")
+		_ = os.Setenv("INT_FIELD", "invalid")
 
-	cfg := new(TestConfig)
-	cfgManager := NewDefault()
-	err := cfgManager.Unmarshal(cfg)
+		cfg := new(TestConfig)
+		cfgManager := NewDefault()
+		err := cfgManager.Unmarshal(cfg)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse INT_FIELD")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse INT_FIELD")
+	})
+
+	t.Run("int slice", func(t *testing.T) {
+		type TestConfig struct {
+			IntField []int `env:"INT_SLICE_FIELD"`
+		}
+
+		_ = os.Setenv("INT_SLICE_FIELD", "invalid,1,2")
+
+		cfg := new(TestConfig)
+		cfgManager := NewDefault()
+		err := cfgManager.Unmarshal(cfg)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse INT_SLICE_FIELD")
+	})
 }
 
 func Test_StructField(t *testing.T) {
@@ -234,6 +255,7 @@ func Test_OmitEmpty(t *testing.T) {
 		TimeDurationField time.Duration `env:"TIME_FIELD,omitempty"`
 		ByteSliceField    []byte        `env:"BYTE_SLICE_FIELD,omitempty"`
 		StringSliceField  []string      `env:"STRING_SLICE_FIELD,omitempty"`
+		IntSliceField     []int         `env:"INT_SLICE_FIELD,omitempty"`
 	}
 
 	_ = os.Setenv("BOOL_FIELD", "")
@@ -253,6 +275,7 @@ func Test_OmitEmpty(t *testing.T) {
 	_ = os.Setenv("TIME_FIELD", "")
 	_ = os.Setenv("BYTE_SLICE_FIELD", "")
 	_ = os.Setenv("STRING_SLICE_FIELD", "")
+	_ = os.Setenv("INT_SLICE_FIELD", "")
 
 	cfg := new(TestConfig)
 	cfgManager := NewDefault()
@@ -276,6 +299,7 @@ func Test_OmitEmpty(t *testing.T) {
 	assert.Equal(t, time.Duration(0), cfg.TimeDurationField)
 	assert.Equal(t, []byte(nil), cfg.ByteSliceField)
 	assert.Equal(t, []string(nil), cfg.StringSliceField)
+	assert.Equal(t, []int(nil), cfg.IntSliceField)
 }
 
 func Test_DefaultValues(t *testing.T) {
