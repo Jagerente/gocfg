@@ -4,6 +4,7 @@ type DocField struct {
 	Key          string
 	Description  string
 	DefaultValue string
+	ExampleValue string
 	OmitEmpty    bool
 }
 

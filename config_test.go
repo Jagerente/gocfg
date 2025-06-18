@@ -2,11 +2,12 @@ package gocfg
 
 import (
 	"errors"
-	"github.com/Jagerente/gocfg/pkg/values"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/Jagerente/gocfg/pkg/values"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_UnmarshalFromEnv(t *testing.T) {
@@ -505,4 +506,36 @@ func Test_parseDocGroup(t *testing.T) {
 	assert.Len(t, docGroup.Groups[0].Fields, 1)
 	assert.Equal(t, "NESTED_BOOL_FIELD", docGroup.Groups[0].Fields[0].Key)
 	assert.Equal(t, "Description for Nested BoolField", docGroup.Groups[0].Fields[0].Description)
+}
+
+func Test_parseDocGroup_WithExampleTag(t *testing.T) {
+	type TestConfig struct {
+		StringField      string `env:"STRING_FIELD" description:"Description for StringField" default:"default_value" example:"example_value"`
+		IntField         int    `env:"INT_FIELD" description:"Description for IntField" example:"42"`
+		OnlyDefaultField string `env:"ONLY_DEFAULT_FIELD" default:"only_default"`
+	}
+
+	cfg := new(TestConfig)
+
+	docGroup := NewDoc()
+
+	cfgManager := NewEmpty()
+	cfgManager.parseDocGroup(docGroup, cfg)
+
+	assert.NotNil(t, docGroup)
+	assert.Len(t, docGroup.Fields, 3)
+
+	assert.Equal(t, "STRING_FIELD", docGroup.Fields[0].Key)
+	assert.Equal(t, "Description for StringField", docGroup.Fields[0].Description)
+	assert.Equal(t, "default_value", docGroup.Fields[0].DefaultValue)
+	assert.Equal(t, "example_value", docGroup.Fields[0].ExampleValue)
+
+	assert.Equal(t, "INT_FIELD", docGroup.Fields[1].Key)
+	assert.Equal(t, "Description for IntField", docGroup.Fields[1].Description)
+	assert.Equal(t, "", docGroup.Fields[1].DefaultValue)
+	assert.Equal(t, "42", docGroup.Fields[1].ExampleValue)
+
+	assert.Equal(t, "ONLY_DEFAULT_FIELD", docGroup.Fields[2].Key)
+	assert.Equal(t, "only_default", docGroup.Fields[2].DefaultValue)
+	assert.Equal(t, "", docGroup.Fields[2].ExampleValue)
 }

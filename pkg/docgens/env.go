@@ -2,9 +2,10 @@ package docgens
 
 import (
 	"fmt"
-	"github.com/Jagerente/gocfg"
 	"io"
 	"strings"
+
+	"github.com/Jagerente/gocfg"
 )
 
 type EnvDocGenerator struct {
@@ -99,8 +100,23 @@ func (g *EnvDocGenerator) writeField(field *gocfg.DocField) error {
 		}
 	}
 
+	if field.DefaultValue != "" {
+		if field.Description != "" {
+			if err := g.write("#\n"); err != nil {
+				return err
+			}
+		}
+		if err := g.write(fmt.Sprintf("# Default: `%s`\n", field.DefaultValue)); err != nil {
+			return err
+		}
+	}
+
 	if field.Key != "" {
-		if err := g.write(fmt.Sprintf("%s=%s\n", field.Key, field.DefaultValue)); err != nil {
+		value := field.ExampleValue
+		if value == "" {
+			value = field.DefaultValue
+		}
+		if err := g.write(fmt.Sprintf("%s=%s\n", field.Key, value)); err != nil {
 			return err
 		}
 	}
