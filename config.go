@@ -2,17 +2,19 @@ package gocfg
 
 import (
 	"fmt"
-	"github.com/Jagerente/gocfg/pkg/parsers"
-	"github.com/Jagerente/gocfg/pkg/values"
 	"log"
 	"reflect"
 	"strings"
+
+	"github.com/Jagerente/gocfg/pkg/parsers"
+	"github.com/Jagerente/gocfg/pkg/values"
 )
 
 // Default tags for struct field annotations
 const (
 	structKeyTag         = "env"
 	structDefaultTag     = "default"
+	structExampleTag     = "example"
 	structAllowEmptyTag  = "omitempty"
 	structDescriptionTag = "description"
 	structTitleTag       = "title"
@@ -37,6 +39,7 @@ type DocGenerator interface {
 type ConfigManager struct {
 	structKeyTag         string
 	structDefaultTag     string
+	structExampleTag     string
 	structAllowEmptyTag  string
 	parserProviders      []ParserProvider
 	valueProviders       []ValueProvider
@@ -51,6 +54,7 @@ func NewEmpty() *ConfigManager {
 	return &ConfigManager{
 		structKeyTag:         structKeyTag,
 		structDefaultTag:     structDefaultTag,
+		structExampleTag:     structExampleTag,
 		structAllowEmptyTag:  structAllowEmptyTag,
 		structDescriptionTag: structDescriptionTag,
 		structTitleTag:       structTitleTag,
@@ -216,6 +220,7 @@ func (c *ConfigManager) parseDocGroup(docGroup *DocTree, cfg interface{}) {
 			key          = strings.Split(tag, ",")[0]
 			allowEmpty   = strings.Contains(tag, c.structAllowEmptyTag)
 			defaultValue = val.Type().Field(i).Tag.Get(c.structDefaultTag)
+			exampleValue = val.Type().Field(i).Tag.Get(c.structExampleTag)
 			description  = val.Type().Field(i).Tag.Get(c.structDescriptionTag)
 			title        = val.Type().Field(i).Tag.Get(c.structTitleTag)
 		)
@@ -230,6 +235,7 @@ func (c *ConfigManager) parseDocGroup(docGroup *DocTree, cfg interface{}) {
 			OmitEmpty:    allowEmpty,
 			Description:  description,
 			DefaultValue: defaultValue,
+			ExampleValue: exampleValue,
 		})
 	}
 }

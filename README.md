@@ -52,9 +52,12 @@ type AppConfig struct {
 	// Supported Tags:
 	// - env: Specifies the environment variable name.
 	// - default: Specifies the default value for the field.
+	// - example: Specifies an example value for documentation generation.
 	// - omitempty: Allows empty fields. 
 	//              If both the parsed value and the default value are empty, 
 	//              the field will be set to the zero value for its type in Go.
+	// - description: Describes the field for documentation generation.
+	// - title: Specifies the title for nested struct documentation.
 
 	LogLevel          LoggerConfig
 	RedisConfig       RedisConfig
@@ -287,22 +290,22 @@ import (
 )
 
 type LoggerConfig struct {
-	LogLevel     int  `env:"LOG_LEVEL" default:"6" description:"https://pkg.go.dev/github.com/sirupsen/logrus@v1.9.3#Level"`
-	ReportCaller bool `env:"REPORT_CALLER" default:"true"`
-	LogFormatter int  `env:"LOG_FORMATTER" default:"0"`
+	LogLevel     int  `env:"LOG_LEVEL" default:"6" example:"4" description:"https://pkg.go.dev/github.com/sirupsen/logrus@v1.9.3#Level"`
+	ReportCaller bool `env:"REPORT_CALLER" default:"true" example:"false"`
+	LogFormatter int  `env:"LOG_FORMATTER" default:"0" example:"1"`
 }
 
 type CassandraConfig struct {
-	CassandraHosts    string `env:"CASSANDRA_HOSTS" default:"127.0.0.1"`
-	CassandraKeyspace string `env:"CASSANDRA_KEYSPACE" default:"user_data_service"`
+	CassandraHosts    string `env:"CASSANDRA_HOSTS" default:"127.0.0.1" example:"cassandra.example.com"`
+	CassandraKeyspace string `env:"CASSANDRA_KEYSPACE" default:"user_data_service" example:"production_keyspace"`
 }
 
 type RouterConfig struct {
-	ServerPort               uint16        `env:"SERVER_PORT" default:"8080"`
-	Debug                    bool          `env:"ROUTER_DEBUG" default:"true"`
-	CacheAdapter             string        `env:"CACHE_ADAPTER,omitempty" description:"Leave blank to not use.\nPossible values:\n- redis\n- memcache"`
-	CacheAdapterTTL          time.Duration `env:"CACHE_ADAPTER_TTL,omitempty" default:"1m"`
-	CacheAdapterNoCacheParam string        `env:"CACHE_ADAPTER_NOCACHE_PARAM,omitempty" default:"no-cache"`
+	ServerPort               uint16        `env:"SERVER_PORT" default:"8080" example:"3000"`
+	Debug                    bool          `env:"ROUTER_DEBUG" default:"true" example:"false"`
+	CacheAdapter             string        `env:"CACHE_ADAPTER,omitempty" example:"redis" description:"Leave blank to not use.\nPossible values:\n- redis\n- memcache"`
+	CacheAdapterTTL          time.Duration `env:"CACHE_ADAPTER_TTL,omitempty" default:"1m" example:"5m"`
+	CacheAdapterNoCacheParam string        `env:"CACHE_ADAPTER_NOCACHE_PARAM,omitempty" default:"no-cache" example:"skip-cache"`
 }
 
 type RedisCacheAdapterConfig struct {
@@ -374,7 +377,7 @@ func main() {
 
 3. Run it by executing `go run cmd/docs/main.go`; it will generate the following file `.env.dist.generated`:
 
-```go
+```bash
 # Auto-generated config
 
 #############################
@@ -383,19 +386,25 @@ func main() {
 
 # Description:
 #  https://pkg.go.dev/github.com/sirupsen/logrus@v1.9.3#Level
-LOG_LEVEL=6
+#
+# Default: `6`
+LOG_LEVEL=4
 
-REPORT_CALLER=true
+# Default: `true`
+REPORT_CALLER=false
 
-LOG_FORMATTER=0
+# Default: `0`
+LOG_FORMATTER=1
 
 #############################
 # Router configuration
 #############################
 
-SERVER_PORT=8080
+# Default: `8080`
+SERVER_PORT=3000
 
-ROUTER_DEBUG=true
+# Default: `true`
+ROUTER_DEBUG=false
 
 # Allowed to be empty
 # Description:
@@ -403,13 +412,15 @@ ROUTER_DEBUG=true
 #  Possible values:
 #  - redis
 #  - memcache
-CACHE_ADAPTER=
+CACHE_ADAPTER=redis
 
 # Allowed to be empty
-CACHE_ADAPTER_TTL=1m
+# Default: `1m`
+CACHE_ADAPTER_TTL=5m
 
 # Allowed to be empty
-CACHE_ADAPTER_NOCACHE_PARAM=no-cache
+# Default: `no-cache`
+CACHE_ADAPTER_NOCACHE_PARAM=skip-cache
 
 #############################
 # Redis Cache Adapter configuration
@@ -441,8 +452,10 @@ CACHE_ADAPTER_MEMCACHE_CACHING_ALGORITHM=LRU
 # Cassandra configuration
 #############################
 
-CASSANDRA_HOSTS=127.0.0.1
+# Default: `127.0.0.1`
+CASSANDRA_HOSTS=cassandra.example.com
 
-CASSANDRA_KEYSPACE=user_data_service
+# Default: `user_data_service`
+CASSANDRA_KEYSPACE=production_keyspace
 
 ```
