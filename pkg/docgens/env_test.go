@@ -108,6 +108,35 @@ FIELD_ONLY_DEFAULT=only_default
 	assert.Equal(t, expectedOutput, buf.String())
 }
 
+func TestEnvDocGenerator_GenerateDoc_WithUnkeyedFields(t *testing.T) {
+	doc := &gocfg.DocTree{
+		Fields: []*gocfg.DocField{
+			{Key: "FIRST_FIELD", DefaultValue: "first"},
+			{Description: "Field without a key must not appear at all"},
+			{},
+			{Key: "SECOND_FIELD", OmitEmpty: true},
+		},
+	}
+
+	var buf = new(bytes.Buffer)
+	envDocGen := NewEnvDocGenerator(buf)
+
+	err := envDocGen.GenerateDoc(doc)
+	assert.NoError(t, err)
+
+	expectedOutput := `# Auto-generated config
+
+# Default: ` + "`first`" + `
+FIRST_FIELD=first
+
+# Allowed to be empty
+SECOND_FIELD=
+`
+
+	assert.Equal(t, expectedOutput, buf.String())
+	assert.NotContains(t, buf.String(), "must not appear")
+}
+
 func TestEnvDocGenerator_GenerateDoc_ErrorOnWrite(t *testing.T) {
 	failingWriter := &mockFailingWriter{
 		failAfter: 0,
@@ -235,12 +264,23 @@ func TestEnvDocGenerator_writeField_ErrorOnBreakLine(t *testing.T) {
 
 	envDocGen := &EnvDocGenerator{writer: failingWriter}
 
-	err := envDocGen.writeField(new(gocfg.DocField))
+	err := envDocGen.writeField(&gocfg.DocField{Key: "FIELD"})
 	assert.Error(t, err)
+}
+
+func TestEnvDocGenerator_writeField_WithoutKey(t *testing.T) {
+	var buf = new(bytes.Buffer)
+	envDocGen := &EnvDocGenerator{writer: buf}
+
+	err := envDocGen.writeField(&gocfg.DocField{Description: "Not a configuration key"})
+
+	assert.NoError(t, err)
+	assert.Empty(t, buf.String())
 }
 
 func TestEnvDocGenerator_writeField_ErrorOnWriteOmitEmpty(t *testing.T) {
 	field := &gocfg.DocField{
+		Key:       "FIELD",
 		OmitEmpty: true,
 	}
 
@@ -256,6 +296,7 @@ func TestEnvDocGenerator_writeField_ErrorOnWriteOmitEmpty(t *testing.T) {
 
 func TestEnvDocGenerator_writeField_ErrorOnWriteDescription(t *testing.T) {
 	field := &gocfg.DocField{
+		Key:         "FIELD",
 		Description: "qwe",
 	}
 
@@ -271,6 +312,7 @@ func TestEnvDocGenerator_writeField_ErrorOnWriteDescription(t *testing.T) {
 
 func TestEnvDocGenerator_writeField_ErrorOnWriteDescriptionLine(t *testing.T) {
 	field := &gocfg.DocField{
+		Key:         "FIELD",
 		Description: "qwe",
 	}
 
@@ -301,6 +343,7 @@ func TestEnvDocGenerator_writeField_ErrorOnWriteKey(t *testing.T) {
 
 func TestEnvDocGenerator_writeField_ErrorOnWriteDefaultBreakLine(t *testing.T) {
 	field := &gocfg.DocField{
+		Key:          "FIELD",
 		Description:  "Description text",
 		DefaultValue: "default_val",
 	}
@@ -317,6 +360,7 @@ func TestEnvDocGenerator_writeField_ErrorOnWriteDefaultBreakLine(t *testing.T) {
 
 func TestEnvDocGenerator_writeField_ErrorOnWriteDefaultComment(t *testing.T) {
 	field := &gocfg.DocField{
+		Key:          "FIELD",
 		Description:  "Description text",
 		DefaultValue: "default_val",
 	}
@@ -333,6 +377,7 @@ func TestEnvDocGenerator_writeField_ErrorOnWriteDefaultComment(t *testing.T) {
 
 func TestEnvDocGenerator_writeField_ErrorOnWriteDefaultComment_NoDescription(t *testing.T) {
 	field := &gocfg.DocField{
+		Key:          "FIELD",
 		DefaultValue: "default_val",
 	}
 

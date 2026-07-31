@@ -77,6 +77,10 @@ func (g *EnvDocGenerator) writeGroup(group *gocfg.DocTree) error {
 }
 
 func (g *EnvDocGenerator) writeField(field *gocfg.DocField) error {
+	if field.Key == "" {
+		return nil
+	}
+
 	if err := g.writeBreakLine(); err != nil {
 		return err
 	}
@@ -111,14 +115,13 @@ func (g *EnvDocGenerator) writeField(field *gocfg.DocField) error {
 		}
 	}
 
-	if field.Key != "" {
-		value := field.ExampleValue
-		if value == "" {
-			value = field.DefaultValue
-		}
-		if err := g.write(fmt.Sprintf("%s=%s\n", field.Key, value)); err != nil {
-			return err
-		}
+	value := field.ExampleValue
+	if value == "" {
+		value = field.DefaultValue
+	}
+
+	if err := g.write(fmt.Sprintf("%s=%s\n", field.Key, value)); err != nil {
+		return err
 	}
 
 	return nil
