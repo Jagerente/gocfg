@@ -1,28 +1,36 @@
 package values
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func createTempEnvFile(content string, path ...string) (string, error) {
-	var (
-		tmpFile *os.File
-	)
+func createTempEnvFile(t *testing.T, content string, name ...string) string {
+	t.Helper()
 
-	if len(path) < 1 {
-		tmpFile, _ = os.CreateTemp(".", "test_env_*.env")
-	} else {
-		tmpFile, _ = os.Create(path[0])
-	}
-	defer func() { _ = tmpFile.Close() }()
-
-	if _, err := tmpFile.WriteString(content); err != nil {
-		return "", err
+	fileName := "test_env.env"
+	if len(name) > 0 {
+		fileName = name[0]
 	}
 
-	return tmpFile.Name(), nil
+	path := filepath.Join(t.TempDir(), fileName)
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	return path
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+
+	previous, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(dir))
+
+	t.Cleanup(func() { _ = os.Chdir(previous) })
 }
 
 func Test_NewDotEnvProvider(t *testing.T) {
@@ -31,9 +39,7 @@ func Test_NewDotEnvProvider(t *testing.T) {
 VAR2=value2`
 	)
 
-	envFilePath, err := createTempEnvFile(content)
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(envFilePath) }()
+	envFilePath := createTempEnvFile(t, content)
 
 	provider, err := NewDotEnvProvider(envFilePath)
 	assert.NoError(t, err)
@@ -51,9 +57,9 @@ func Test_NewDotEnvProviderDefaultFile(t *testing.T) {
 VAR2=value2`
 	)
 
-	envFilePath, err := createTempEnvFile(content, defaultEnvFile)
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(envFilePath) }()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, defaultEnvFile), []byte(content), 0o600))
+	chdir(t, dir)
 
 	provider, err := NewDotEnvProvider()
 	assert.NoError(t, err)
@@ -74,12 +80,8 @@ VAR3=value3
 VAR4=value4`
 	)
 
-	envFilePath1, _ := createTempEnvFile(content1)
-	defer func() { _ = os.Remove(envFilePath1) }()
-
-	envFilePath2, err := createTempEnvFile(content2)
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(envFilePath2) }()
+	envFilePath1 := createTempEnvFile(t, content1, "first.env")
+	envFilePath2 := createTempEnvFile(t, content2, "second.env")
 
 	provider, err := NewDotEnvProvider(envFilePath1, envFilePath2)
 	assert.NoError(t, err)
@@ -94,14 +96,45 @@ VAR4=value4`
 }
 
 func Test_InvalidFileContent(t *testing.T) {
-	envFilePath, _ := createTempEnvFile("!@#$%^&*()_+=-", "invalid_env_file.env")
-	defer func() { _ = os.Remove(envFilePath) }()
+	envFilePath := createTempEnvFile(t, "!@#$%^&*()_+=-", "invalid_env_file.env")
 
 	_, err := NewDotEnvProvider(envFilePath)
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), envFilePath, "the failing file must be named in the error")
 }
 
 func Test_NonExistentFile(t *testing.T) {
 	_, err := NewDotEnvProvider("!@#$%^&*()_")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "!@#$%^&*()_", "the missing file must be named in the error")
+}
+
+func Test_DotEnvProviderLookup(t *testing.T) {
+	envFilePath := createTempEnvFile(t, "SET_VAR=value\nEMPTY_VAR=")
+
+	provider, err := NewDotEnvProvider(envFilePath)
+	require.NoError(t, err)
+
+	value, found := provider.Lookup("SET_VAR")
+	assert.True(t, found)
+	assert.Equal(t, "value", value)
+
+	value, found = provider.Lookup("EMPTY_VAR")
+	assert.True(t, found, "a key present with an empty value is still present")
+	assert.Equal(t, "", value)
+
+	value, found = provider.Lookup("MISSING_VAR")
+	assert.False(t, found)
+	assert.Equal(t, "", value)
+}
+
+func Test_DotEnvProviderClosesFiles(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "broken.env")
+	require.NoError(t, os.WriteFile(path, []byte("!@#$%^&*()_+=-"), 0o600))
+
+	_, err := NewDotEnvProvider(path)
+	require.Error(t, err)
+
+	assert.NoError(t, os.Remove(path), "the file must not be held open after a parse failure")
 }

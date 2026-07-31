@@ -1,1 +1,12 @@
 .idea
+
+# Test and coverage artifacts
+coverage.txt
+coverage.out
+*.test
+*.out
+
+# Local environment files
+.env
+*.env
+!testdata/*.env
